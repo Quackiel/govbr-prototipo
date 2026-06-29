@@ -45,3 +45,19 @@
   .footer-inner nav { gap: 10px 14px; }
   .help-button { right: 14px; bottom: 14px; }
 }
+
+
+@media (max-width: 900px) {
+  .login-screen { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+  .login-card .panel.narrow { max-width: none; }
+}
+
+@media (max-width: 720px) {
+  .login-screen { width: min(100% - 24px, var(--container)); padding: 28px 0; }
+  .login-brand-panel h1 { font-size: 1.65rem; }
+  .login-benefits { flex-direction: column; }
+  .document-slide { grid-template-columns: 1fr; min-height: 260px; align-items: start; }
+  .document-badge { width: 64px; height: 64px; }
+  .document-slide button { width: 100%; }
+  .carousel-header { align-items: flex-start; }
+}

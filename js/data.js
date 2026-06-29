@@ -6,16 +6,17 @@ const GOV_DATA = {
       intro: 'Acesse serviços digitais, documentos, benefícios e agendamentos em uma experiência mais direta e organizada.',
       highlight: 'Sua CNH vence em 30 dias. Inicie a renovação sem precisar navegar por diferentes páginas.',
       sections: [
-        { type: 'quick', title: 'Acesso rápido', subtitle: 'Serviços e dados mais usados pelo cidadão' },
-        { type: 'recommended', title: 'Recomendado para você', subtitle: 'Alertas contextuais simulados com base em situações comuns do cidadão' },
-        { type: 'process', title: 'Acompanhamento de solicitações', subtitle: 'Status claro e sem redirecionamentos desnecessários' }
+        { type: 'documentCarousel' },
+        { type: 'quick' },
+        { type: 'recommended' },
+        { type: 'process' }
       ]
     },
     login: {
-      breadcrumb: 'Início / Login',
+      breadcrumb: 'Acesso',
       title: 'Entrar com gov.br',
-      intro: 'Acesse sua conta com CPF, passkey, biometria ou validação tradicional.',
-      highlight: 'O uso de passkeys reduz dependência de senha e deixa o acesso mais direto.',
+      intro: 'Acesse sua conta para consultar documentos, serviços, agendamentos e benefícios em um só lugar.',
+      highlight: 'Use CPF, passkey ou biometria para entrar no protótipo.',
       sections: [{ type: 'login' }]
     },
     carteira: {

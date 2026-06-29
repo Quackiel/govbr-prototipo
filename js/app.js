@@ -1,8 +1,10 @@
 const shell = document.getElementById('app-shell');
+const AUTH_KEY = 'govbr-prototipo-authenticated';
+let carouselIndex = 0;
+let authMemory = false;
 
 const MENU = [
   { label: 'Página inicial', page: 'inicio' },
-  { label: 'Login gov.br', page: 'login' },
   { label: 'Carteira Digital', children: [
     { label: 'Documentos pessoais', page: 'carteira' },
     { label: 'Dependentes', page: 'dependentes' },
@@ -22,40 +24,100 @@ const MENU = [
     { label: 'Atendimento CRAS', page: 'social' },
     { label: 'Perícia INSS', page: 'previdencia' }
   ]},
-  { label: 'Acessibilidade', children: [
-    { label: 'Modo simplificado', page: 'simplificado' },
-    { label: 'Ajuda contextual', page: 'ajuda' },
-    { label: 'Segurança', page: 'seguranca' }
-  ]}
+  { label: 'Segurança da conta', page: 'seguranca' },
+  { label: 'Modo simplificado', page: 'simplificado' }
 ];
+
+const DOCUMENTS = [
+  { short: 'CIN', title: 'Carteira de Identidade Nacional', text: 'Documento de identificação com CPF integrado.', page: 'carteira', action: 'Visualizar CIN' },
+  { short: 'CNH', title: 'Carteira Nacional de Habilitação', text: 'Validade, pontuação, veículos e renovação.', page: 'transito', action: 'Consultar CNH' },
+  { short: 'CPF', title: 'Cadastro de Pessoa Física', text: 'Situação cadastral e comprovante de inscrição.', page: 'carteira', action: 'Emitir CPF' },
+  { short: 'CTPS', title: 'Carteira de Trabalho Digital', text: 'Vínculos, contratos e dados trabalhistas.', page: 'previdencia', action: 'Abrir CTPS' },
+  { short: 'SUS', title: 'Cartão Nacional de Saúde', text: 'Vacinas, receitas e atendimentos vinculados.', page: 'saude', action: 'Ver cartão SUS' }
+];
+
+function isAuthenticated() {
+  try {
+    return authMemory || localStorage.getItem(AUTH_KEY) === 'true';
+  } catch (error) {
+    return authMemory;
+  }
+}
+
+function setAuthenticated(value) {
+  authMemory = Boolean(value);
+  try {
+    localStorage.setItem(AUTH_KEY, value ? 'true' : 'false');
+  } catch (error) {
+    // Mantém o fluxo funcionando mesmo quando o navegador bloqueia armazenamento local.
+  }
+}
 
 function currentPage() {
   const params = new URLSearchParams(window.location.search);
-  const page = params.get('page') || shell.dataset.page || 'inicio';
-  return GOV_DATA.pages[page] ? page : 'inicio';
+  const requestedPage = params.get('page') || shell.dataset.page || 'inicio';
+  if (!isAuthenticated()) return 'login';
+  if (requestedPage === 'login') return 'inicio';
+  return GOV_DATA.pages[requestedPage] ? requestedPage : 'inicio';
 }
 
 function navigate(page) {
-  const url = page === 'inicio' ? 'index.html' : `index.html?page=${page}`;
+  const target = !isAuthenticated() && page !== 'login' ? 'login' : page;
+  const url = target === 'inicio' ? 'index.html' : `index.html?page=${target}`;
   window.history.pushState({}, '', url);
-  render(page);
+  render(target);
+}
+
+function login() {
+  setAuthenticated(true);
+  navigate('inicio');
+}
+
+function logout() {
+  setAuthenticated(false);
+  window.history.pushState({}, '', 'index.html');
+  render('login');
 }
 
 function menuHtml(activePage) {
   return MENU.map((item) => {
     if (!item.children) {
-      return `<button class="nav-link ${item.page === activePage ? 'active' : ''}" data-page="${item.page}">${item.label}</button>`;
+      return `<button class="nav-link ${item.page === activePage ? 'active' : ''}" type="button" data-page="${item.page}">${item.label}</button>`;
     }
     const open = item.children.some(child => child.page === activePage) ? 'open' : '';
     return `
       <div class="nav-group ${open}">
         <button class="nav-toggle" type="button">${item.label}<span aria-hidden="true">⌄</span></button>
         <div class="nav-submenu">
-          ${item.children.map(child => `<button class="nav-sublink ${child.page === activePage ? 'active' : ''}" data-page="${child.page}">${child.label}</button>`).join('')}
+          ${item.children.map(child => `<button class="nav-sublink ${child.page === activePage ? 'active' : ''}" type="button" data-page="${child.page}">${child.label}</button>`).join('')}
         </div>
       </div>
     `;
   }).join('');
+}
+
+function loginShellHtml(page) {
+  return `
+    <div class="skip-link"><a href="#conteudo">Ir para o conteúdo principal</a></div>
+    <main class="login-screen" id="conteudo" tabindex="-1">
+      <section class="login-brand-panel" aria-label="Apresentação Gov.br">
+        <a class="brand login-brand" href="index.html" aria-label="Página inicial do Gov.br">
+          <img src="assets/img/logo-govbr.svg" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+          <strong class="brand-text">gov.br</strong>
+        </a>
+        <h1>${page.title}</h1>
+        <p>${page.intro}</p>
+        <div class="login-benefits">
+          <span>Documentos digitais</span>
+          <span>Serviços públicos</span>
+          <span>Agendamentos integrados</span>
+        </div>
+      </section>
+      <section class="login-card" aria-label="Formulário de login">
+        ${loginSection()}
+      </section>
+    </main>
+  `;
 }
 
 function shellHtml(activePage, page) {
@@ -65,10 +127,10 @@ function shellHtml(activePage, page) {
       <div class="container topbar-inner">
         <span>Portal Gov.br</span>
         <nav aria-label="Links institucionais">
-          <a href="#">Acesso à informação</a>
-          <a href="#">Participação social</a>
-          <a href="#">Legislação</a>
-          <a href="#">Órgãos do Governo</a>
+          <a href="#" data-action="Abrir Acesso à informação">Acesso à informação</a>
+          <a href="#" data-action="Abrir Participação social">Participação social</a>
+          <a href="#" data-action="Abrir Legislação">Legislação</a>
+          <a href="#" data-action="Abrir Órgãos do Governo">Órgãos do Governo</a>
         </nav>
       </div>
     </header>
@@ -76,18 +138,19 @@ function shellHtml(activePage, page) {
     <header class="brand-header">
       <div class="container brand-inner">
         <div class="brand-left">
-          <button class="menu-mobile" id="btnMenu" aria-label="Abrir menu">☰</button>
-          <a class="brand" href="index.html" aria-label="Página inicial do Gov.br">
+          <button class="menu-mobile" id="btnMenu" type="button" aria-label="Abrir menu">☰</button>
+          <a class="brand" href="index.html" aria-label="Página inicial do Gov.br" data-page="inicio">
             <img src="assets/img/logo-govbr.svg" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
             <strong class="brand-text">gov.br</strong>
             <span>Portal de serviços</span>
           </a>
         </div>
         <div class="brand-actions">
-          <button class="link-button" id="fontBtn">A+</button>
-          <button class="link-button" id="contrastBtn">Alto contraste</button>
-          <button class="link-button" id="themeBtn">Modo escuro</button>
-          <button class="primary-pill" data-page="login">Entrar com gov.br</button>
+          <button class="link-button" id="fontBtn" type="button">A+</button>
+          <button class="link-button" id="contrastBtn" type="button">Alto contraste</button>
+          <button class="link-button" id="themeBtn" type="button">Modo escuro</button>
+          <button class="link-button" type="button" data-page="ajuda">Ajuda</button>
+          <button class="primary-pill" id="logoutBtn" type="button">Sair</button>
         </div>
       </div>
     </header>
@@ -104,7 +167,7 @@ function shellHtml(activePage, page) {
             <label for="smartSearch">Buscar serviço ou informação</label>
             <div class="search-row">
               <input id="smartSearch" type="search" placeholder="Ex.: CNH, vacina, Bolsa Família, INSS" autocomplete="off">
-              <button class="primary-button" id="btnSearch">Buscar</button>
+              <button class="primary-button" id="btnSearch" type="button">Buscar</button>
             </div>
             <div class="suggestions" id="suggestions"></div>
           </div>
@@ -121,7 +184,7 @@ function shellHtml(activePage, page) {
         <nav>${menuHtml(activePage)}</nav>
       </aside>
       <main class="main" id="conteudo" tabindex="-1">
-        <section class="message message-info">
+        <section class="message message-info" id="statusMessage" aria-live="polite">
           <strong>Recomendação</strong>
           <p>${page.highlight}</p>
         </section>
@@ -133,20 +196,19 @@ function shellHtml(activePage, page) {
       <div class="container footer-inner">
         <strong>Gov.br</strong>
         <nav aria-label="Links de rodapé">
-          <a href="#">Transparência</a>
-          <a href="#">Privacidade</a>
-          <a href="#">Acessibilidade</a>
-          <a href="#">Ouvidoria</a>
+          <a href="#" data-action="Abrir transparência">Transparência</a>
+          <a href="#" data-action="Abrir privacidade">Privacidade</a>
+          <a href="#" data-action="Abrir acessibilidade">Acessibilidade</a>
+          <a href="#" data-action="Abrir ouvidoria">Ouvidoria</a>
         </nav>
       </div>
     </footer>
-
-    <button class="help-button" data-page="ajuda">Ajuda</button>
   `;
 }
 
 function sectionHtml(section) {
   const templates = {
+    documentCarousel: documentCarouselSection,
     quick: quickSection,
     recommended: recommendedSection,
     process: processSection,
@@ -172,6 +234,34 @@ function blockHeader(title, subtitle) {
   return `<div class="section-header"><div><span>${subtitle || 'Serviços digitais'}</span><h2>${title}</h2></div></div>`;
 }
 
+function documentCarouselSection() {
+  return `
+    <section class="panel document-panel" aria-label="Documentos mais usados">
+      <div class="section-header carousel-header">
+        <div><span>Documentos mais usados</span><h2>Acesse sem procurar em vários órgãos</h2></div>
+        <div class="carousel-controls" aria-label="Controles do carrossel">
+          <button type="button" class="icon-button" id="carouselPrev" aria-label="Documento anterior">‹</button>
+          <button type="button" class="icon-button" id="carouselNext" aria-label="Próximo documento">›</button>
+        </div>
+      </div>
+      <div class="document-carousel" id="documentCarousel">
+        ${DOCUMENTS.map((doc, index) => `
+          <article class="document-slide ${index === 0 ? 'active' : ''}" data-slide="${index}">
+            <span class="document-badge">${doc.short}</span>
+            <div>
+              <strong>${doc.title}</strong>
+              <p>${doc.text}</p>
+            </div>
+            <button type="button" data-page="${doc.page}">${doc.action}</button>
+          </article>
+        `).join('')}
+      </div>
+      <div class="carousel-dots" aria-label="Indicadores do carrossel">
+        ${DOCUMENTS.map((doc, index) => `<button type="button" class="carousel-dot ${index === 0 ? 'active' : ''}" data-carousel-index="${index}" aria-label="Mostrar ${doc.short}"></button>`).join('')}
+      </div>
+    </section>`;
+}
+
 function quickSection() {
   return `
     <section class="panel">
@@ -184,7 +274,7 @@ function quickSection() {
           ['social','Benefícios sociais','CadÚnico, CRAS, Bolsa Família e BPC.'],
           ['agendamentos','Agendamentos','Consultas, perícias e atendimentos.'],
           ['previdencia','Trabalho e Previdência','CNIS, FGTS, INSS e Seguro-Desemprego.']
-        ].map(([page,title,text]) => `<button class="quick-item" data-page="${page}"><strong>${title}</strong><span>${text}</span></button>`).join('')}
+        ].map(([page,title,text]) => `<button class="quick-item" type="button" data-page="${page}"><strong>${title}</strong><span>${text}</span></button>`).join('')}
       </div>
     </section>`;
 }
@@ -194,9 +284,9 @@ function recommendedSection() {
     <section class="panel">
       ${blockHeader('Recomendado para você', 'Ações prioritárias')}
       <div class="list">
-        <article><strong>Prazo do Imposto de Renda</strong><p>Declaração pré-preenchida disponível para conferência.</p><button data-page="impostos">Acessar</button></article>
-        <article><strong>Atualização do CadÚnico</strong><p>Cadastro deve ser revisado para manter benefícios ativos.</p><button data-page="social">Consultar</button></article>
-        <article><strong>Consulta SUS agendada</strong><p>Compromisso disponível no calendário único.</p><button data-page="agendamentos">Ver agenda</button></article>
+        <article><strong>Prazo do Imposto de Renda</strong><p>Declaração pré-preenchida disponível para conferência.</p><button type="button" data-page="impostos">Acessar</button></article>
+        <article><strong>Atualização do CadÚnico</strong><p>Cadastro deve ser revisado para manter benefícios ativos.</p><button type="button" data-page="social">Consultar</button></article>
+        <article><strong>Consulta SUS agendada</strong><p>Compromisso disponível no calendário único.</p><button type="button" data-page="agendamentos">Ver agenda</button></article>
       </div>
     </section>`;
 }
@@ -219,9 +309,9 @@ function healthSection() {
     <section class="panel">
       ${blockHeader('Saúde', 'SUS integrado')}
       <div class="list three">
-        <article><strong>Cartão de vacina</strong><p>Último registro: Influenza — 2026.</p><button>Ver histórico</button></article>
-        <article><strong>Receitas digitais</strong><p>2 receitas ativas vinculadas ao CPF.</p><button>Consultar</button></article>
-        <article><strong>Tipo sanguíneo</strong><p>Informação registrada: O+.</p><button>Ver dados</button></article>
+        <article><strong>Cartão de vacina</strong><p>Último registro: Influenza - 2026.</p><button type="button" data-action="Ver histórico de vacinação">Ver histórico</button></article>
+        <article><strong>Receitas digitais</strong><p>2 receitas ativas vinculadas ao CPF.</p><button type="button" data-action="Consultar receitas digitais">Consultar</button></article>
+        <article><strong>Tipo sanguíneo</strong><p>Informação registrada: O+.</p><button type="button" data-action="Ver dados de saúde">Ver dados</button></article>
       </div>
     </section>`;
 }
@@ -231,9 +321,9 @@ function educationSection() {
     <section class="panel">
       ${blockHeader('Educação', 'Dados acadêmicos')}
       <div class="list three">
-        <article><strong>Histórico escolar</strong><p>Registros consolidados por etapa de ensino.</p><button>Consultar</button></article>
-        <article><strong>Diplomas validados</strong><p>Documentos reconhecidos em bases educacionais.</p><button>Visualizar</button></article>
-        <article><strong>ENEM</strong><p>Notas nacionais disponíveis para consulta.</p><button>Acessar notas</button></article>
+        <article><strong>Histórico escolar</strong><p>Registros consolidados por etapa de ensino.</p><button type="button" data-action="Consultar histórico escolar">Consultar</button></article>
+        <article><strong>Diplomas validados</strong><p>Documentos reconhecidos em bases educacionais.</p><button type="button" data-action="Visualizar diplomas">Visualizar</button></article>
+        <article><strong>ENEM</strong><p>Notas nacionais disponíveis para consulta.</p><button type="button" data-action="Acessar notas do ENEM">Acessar notas</button></article>
       </div>
     </section>`;
 }
@@ -256,9 +346,9 @@ function socialSection() {
     <section class="panel">
       ${blockHeader('Assistência Social', 'CRAS e benefícios')}
       <div class="list three">
-        <article><strong>Cadastro Único</strong><p>Status atualizado há 6 meses.</p><button>Consultar status</button></article>
-        <article><strong>Bolsa Família</strong><p>Benefício vinculado ao núcleo familiar.</p><button>Acompanhar</button></article>
-        <article><strong>CRAS mais próximo</strong><p>Horários disponíveis nesta semana.</p><button>Agendar</button></article>
+        <article><strong>Cadastro Único</strong><p>Status atualizado há 6 meses.</p><button type="button" data-action="Consultar CadÚnico">Consultar status</button></article>
+        <article><strong>Bolsa Família</strong><p>Benefício vinculado ao núcleo familiar.</p><button type="button" data-action="Acompanhar Bolsa Família">Acompanhar</button></article>
+        <article><strong>CRAS mais próximo</strong><p>Horários disponíveis nesta semana.</p><button type="button" data-page="agendamentos">Agendar</button></article>
       </div>
     </section>`;
 }
@@ -268,10 +358,10 @@ function servicesSection() {
     <section class="panel">
       ${blockHeader('Serviços por área', 'Hub central')}
       <div class="service-tree">
-        <details open><summary>Documentos</summary><button data-page="carteira">Segunda via da CIN</button><button data-page="carteira">Emitir comprovante de CPF</button></details>
-        <details open><summary>Assistência Social</summary><button data-page="social">Atualizar CadÚnico</button><button data-page="social">Agendar atendimento no CRAS</button></details>
-        <details><summary>Trabalho e Previdência</summary><button data-page="previdencia">Consultar CNIS</button><button data-page="previdencia">Simular aposentadoria</button></details>
-        <details><summary>Finanças</summary><button data-page="impostos">Declaração pré-preenchida</button><button data-page="impostos">Consultar restituição</button></details>
+        <details open><summary>Documentos</summary><button type="button" data-page="carteira">Segunda via da CIN</button><button type="button" data-page="carteira">Emitir comprovante de CPF</button></details>
+        <details open><summary>Assistência Social</summary><button type="button" data-page="social">Atualizar CadÚnico</button><button type="button" data-page="social">Agendar atendimento no CRAS</button></details>
+        <details><summary>Trabalho e Previdência</summary><button type="button" data-page="previdencia">Consultar CNIS</button><button type="button" data-page="previdencia">Simular aposentadoria</button></details>
+        <details><summary>Finanças</summary><button type="button" data-page="impostos">Declaração pré-preenchida</button><button type="button" data-page="impostos">Consultar restituição</button></details>
       </div>
     </section>`;
 }
@@ -281,9 +371,9 @@ function appointmentsSection() {
     <section class="panel">
       ${blockHeader('Calendário único', 'Agendamentos')}
       <div class="timeline">
-        <article><time>02/07/2026</time><div><strong>Consulta SUS</strong><p>08:30 — Unidade Básica de Saúde</p></div><button>Reagendar</button></article>
-        <article><time>05/07/2026</time><div><strong>Atendimento CRAS</strong><p>14:00 — CRAS Centro</p></div><button>Cancelar</button></article>
-        <article><time>10/07/2026</time><div><strong>Perícia INSS</strong><p>10:15 — Agência INSS</p></div><button>Detalhes</button></article>
+        <article><time>02/07/2026</time><div><strong>Consulta SUS</strong><p>08:30 - Unidade Básica de Saúde</p></div><button type="button" data-action="Reagendar consulta SUS">Reagendar</button></article>
+        <article><time>05/07/2026</time><div><strong>Atendimento CRAS</strong><p>14:00 - CRAS Centro</p></div><button type="button" data-action="Cancelar atendimento CRAS">Cancelar</button></article>
+        <article><time>10/07/2026</time><div><strong>Perícia INSS</strong><p>10:15 - Agência INSS</p></div><button type="button" data-action="Ver detalhes da perícia INSS">Detalhes</button></article>
       </div>
     </section>`;
 }
@@ -310,13 +400,13 @@ function familySection() {
 
 function loginSection() {
   return `
-    <section class="panel narrow">
+    <section class="panel narrow login-form-panel">
       ${blockHeader('Acesso seguro', 'Passkeys e biometria')}
-      <form class="form-demo">
-        <label>CPF<input type="text" placeholder="Digite seu CPF"></label>
-        <button type="button" class="primary-button">Continuar</button>
-        <button type="button">Entrar com biometria ou passkey</button>
-        <p class="form-help">Use dados fictícios para testar a navegação.</p>
+      <form class="form-demo" id="loginForm">
+        <label>CPF<input id="cpfInput" type="text" inputmode="numeric" placeholder="Digite seu CPF" autocomplete="off"></label>
+        <button type="button" class="primary-button" data-login-method="cpf">Continuar</button>
+        <button type="button" data-login-method="passkey">Entrar com biometria ou passkey</button>
+        <p class="form-help">Use qualquer CPF fictício para testar a navegação.</p>
       </form>
     </section>`;
 }
@@ -326,11 +416,11 @@ function simpleSection() {
     <section class="panel">
       ${blockHeader('Ações principais', 'Modo simplificado')}
       <div class="simple-actions">
-        <button data-page="carteira">Ver meus documentos</button>
-        <button data-page="transito">Ver minhas multas</button>
-        <button data-page="social">Ver meus benefícios</button>
-        <button data-page="agendamentos">Ver meus agendamentos</button>
-        <button data-page="ajuda">Pedir ajuda</button>
+        <button type="button" data-page="carteira">Ver meus documentos</button>
+        <button type="button" data-page="transito">Ver minhas multas</button>
+        <button type="button" data-page="social">Ver meus benefícios</button>
+        <button type="button" data-page="agendamentos">Ver meus agendamentos</button>
+        <button type="button" data-page="ajuda">Pedir ajuda</button>
       </div>
     </section>`;
 }
@@ -340,9 +430,9 @@ function securitySection() {
     <section class="panel">
       ${blockHeader('Segurança', 'Conta Gov.br')}
       <div class="list three">
-        <article><strong>Passkey ativa</strong><p>Biometria ou chave de acesso vinculada ao dispositivo.</p><button>Gerenciar</button></article>
-        <article><strong>Histórico de acessos</strong><p>Último acesso registrado em 29/06/2026.</p><button>Ver histórico</button></article>
-        <article><strong>Privacidade</strong><p>Controle de compartilhamento de dados entre serviços.</p><button>Configurar</button></article>
+        <article><strong>Passkey ativa</strong><p>Biometria ou chave de acesso vinculada ao dispositivo.</p><button type="button" data-action="Gerenciar passkey">Gerenciar</button></article>
+        <article><strong>Histórico de acessos</strong><p>Último acesso registrado em 29/06/2026.</p><button type="button" data-action="Ver histórico de acessos">Ver histórico</button></article>
+        <article><strong>Privacidade</strong><p>Controle de compartilhamento de dados entre serviços.</p><button type="button" data-action="Configurar privacidade">Configurar</button></article>
       </div>
     </section>`;
 }
@@ -352,9 +442,9 @@ function helpSection() {
     <section class="panel">
       ${blockHeader('Ajuda contextual', 'Áudio, texto simples e Libras')}
       <div class="list three">
-        <article><strong>Explicação em texto simples</strong><p>Resumo do que preencher e por que o dado é solicitado.</p><button>Ver exemplo</button></article>
-        <article><strong>Áudio</strong><p>Orientação falada para pessoas com dificuldade de leitura.</p><button>Ouvir</button></article>
-        <article><strong>VLibras</strong><p>Espaço reservado para suporte em Libras no protótipo.</p><button>Simular</button></article>
+        <article><strong>Explicação em texto simples</strong><p>Resumo do que preencher e por que o dado é solicitado.</p><button type="button" data-action="Ver exemplo de ajuda contextual">Ver exemplo</button></article>
+        <article><strong>Áudio</strong><p>Orientação falada para pessoas com dificuldade de leitura.</p><button type="button" data-action="Ouvir orientação em áudio">Ouvir</button></article>
+        <article><strong>VLibras</strong><p>Espaço reservado para suporte em Libras no protótipo.</p><button type="button" data-action="Simular VLibras">Simular</button></article>
       </div>
     </section>`;
 }
@@ -377,9 +467,9 @@ function taxesSection() {
     <section class="panel">
       ${blockHeader('Finanças e Impostos', 'Receita e pagamentos')}
       <div class="list three">
-        <article><strong>Imposto de Renda</strong><p>Declaração pré-preenchida disponível.</p><button>Acessar</button></article>
-        <article><strong>Restituição</strong><p>Consulta de lote e situação do pagamento.</p><button>Consultar</button></article>
-        <article><strong>Débitos</strong><p>Pagamento por PIX ou código de barras.</p><button>Ver pendências</button></article>
+        <article><strong>Imposto de Renda</strong><p>Declaração pré-preenchida disponível.</p><button type="button" data-action="Acessar Imposto de Renda">Acessar</button></article>
+        <article><strong>Restituição</strong><p>Consulta de lote e situação do pagamento.</p><button type="button" data-action="Consultar restituição">Consultar</button></article>
+        <article><strong>Débitos</strong><p>Pagamento por PIX ou código de barras.</p><button type="button" data-action="Ver pendências fiscais">Ver pendências</button></article>
       </div>
     </section>`;
 }
@@ -388,7 +478,7 @@ function tableHtml(headers, rows) {
   return `
     <div class="table" role="table">
       <div class="table-row table-head">${headers.map(h => `<span>${h}</span>`).join('')}</div>
-      ${rows.map(row => `<div class="table-row">${row.map((cell,i) => i === row.length - 1 ? `<span><button>${cell}</button></span>` : `<span>${cell}</span>`).join('')}</div>`).join('')}
+      ${rows.map(row => `<div class="table-row">${row.map((cell,i) => i === row.length - 1 ? `<span><button type="button" data-action="${cell}">${cell}</button></span>` : `<span>${cell}</span>`).join('')}</div>`).join('')}
     </div>`;
 }
 
@@ -399,10 +489,16 @@ function closeSidebar() {
   btnMenu?.setAttribute('aria-expanded', 'false');
 }
 
+function showStatus(title, text) {
+  const message = document.getElementById('statusMessage');
+  if (!message) return;
+  message.innerHTML = `<strong>${title}</strong><p>${text}</p>`;
+  message.classList.add('message-success');
+}
+
 function handleDocumentClick(event) {
   const suggestionsBox = document.getElementById('suggestions');
   const sidebar = document.getElementById('sidebar');
-  const btnMenu = document.getElementById('btnMenu');
 
   if (!event.target.closest('.search-card')) suggestionsBox?.classList.remove('active');
   if (sidebar?.classList.contains('active') && !event.target.closest('#sidebar') && !event.target.closest('#btnMenu')) {
@@ -416,20 +512,43 @@ function handleEscape(event) {
   closeSidebar();
 }
 
+function handlePrototypeAction(event) {
+  const actionEl = event.target.closest?.('[data-action]');
+  if (!actionEl) return;
+  event.preventDefault();
+  const action = actionEl.dataset.action || actionEl.textContent.trim();
+  showStatus('Ação simulada', action + ' foi acionado no protótipo.');
+}
+
 function bindEvents() {
+  const loginForm = document.getElementById('loginForm');
+  loginForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    login();
+  });
+  document.querySelectorAll('[data-login-method]').forEach(button => {
+    button.addEventListener('click', login);
+  });
+
+  document.getElementById('logoutBtn')?.addEventListener('click', logout);
+
   document.querySelectorAll('[data-page]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (event) => {
+      event.preventDefault();
       navigate(el.dataset.page);
       closeSidebar();
     });
   });
+
+  document.removeEventListener('click', handlePrototypeAction);
+  document.addEventListener('click', handlePrototypeAction);
 
   document.querySelectorAll('.nav-toggle').forEach(toggle => {
     const group = toggle.closest('.nav-group');
     toggle.setAttribute('aria-expanded', group?.classList.contains('open') ? 'true' : 'false');
     toggle.addEventListener('click', (event) => {
       event.preventDefault();
-      event.stopImmediatePropagation();
+      event.stopPropagation();
       group?.classList.toggle('open');
       toggle.setAttribute('aria-expanded', group?.classList.contains('open') ? 'true' : 'false');
     });
@@ -440,7 +559,7 @@ function bindEvents() {
   btnMenu?.setAttribute('aria-expanded', 'false');
   btnMenu?.addEventListener('click', (event) => {
     event.preventDefault();
-    event.stopImmediatePropagation();
+    event.stopPropagation();
     const open = !sidebar.classList.contains('active');
     sidebar.classList.toggle('active', open);
     btnMenu.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -458,12 +577,36 @@ function bindEvents() {
   });
   btnSearch?.addEventListener('click', () => submitSearch(input));
 
+  bindCarousel();
+
   document.removeEventListener('click', handleDocumentClick);
   document.addEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleEscape);
   document.addEventListener('keydown', handleEscape);
 
   if (typeof initAccessibility === 'function') initAccessibility();
+}
+
+function bindCarousel() {
+  if (!document.getElementById('documentCarousel')) return;
+  document.getElementById('carouselPrev')?.addEventListener('click', () => moveCarousel(-1));
+  document.getElementById('carouselNext')?.addEventListener('click', () => moveCarousel(1));
+  document.querySelectorAll('[data-carousel-index]').forEach(dot => {
+    dot.addEventListener('click', () => updateCarousel(Number(dot.dataset.carouselIndex)));
+  });
+  updateCarousel(carouselIndex);
+}
+
+function moveCarousel(direction) {
+  updateCarousel(carouselIndex + direction);
+}
+
+function updateCarousel(index) {
+  const slides = Array.from(document.querySelectorAll('.document-slide'));
+  if (!slides.length) return;
+  carouselIndex = (index + slides.length) % slides.length;
+  slides.forEach((slide, slideIndex) => slide.classList.toggle('active', slideIndex === carouselIndex));
+  document.querySelectorAll('.carousel-dot').forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === carouselIndex));
 }
 
 function normalizeText(text) {
@@ -513,11 +656,12 @@ function renderSuggestions(input, box) {
 }
 
 function render(pageName = currentPage()) {
-  const page = GOV_DATA.pages[pageName];
+  const page = GOV_DATA.pages[pageName] || GOV_DATA.pages.login;
   shell.dataset.page = pageName;
+  document.body.classList.toggle('login-page', pageName === 'login');
   document.body.classList.toggle('simple-page', pageName === 'simplificado');
   document.title = `${page.title} - Gov.br Reformulado`;
-  shell.innerHTML = shellHtml(pageName, page);
+  shell.innerHTML = pageName === 'login' ? loginShellHtml(page) : shellHtml(pageName, page);
   bindEvents();
 }
 
