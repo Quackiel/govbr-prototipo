@@ -38,7 +38,7 @@ const DOCUMENTS = [
 
 function isAuthenticated() {
   try {
-    return authMemory || localStorage.getItem(AUTH_KEY) === 'true';
+    return authMemory || sessionStorage.getItem(AUTH_KEY) === 'true';
   } catch (error) {
     return authMemory;
   }
@@ -47,7 +47,8 @@ function isAuthenticated() {
 function setAuthenticated(value) {
   authMemory = Boolean(value);
   try {
-    localStorage.setItem(AUTH_KEY, value ? 'true' : 'false');
+    sessionStorage.setItem(AUTH_KEY, value ? 'true' : 'false');
+    localStorage.removeItem(AUTH_KEY);
   } catch (error) {
     // Mantém o fluxo funcionando mesmo quando o navegador bloqueia armazenamento local.
   }
@@ -158,7 +159,6 @@ function shellHtml(activePage, page) {
     <header class="brand-header">
       <div class="container brand-inner">
         <div class="brand-left">
-          <button class="menu-mobile" id="btnMenu" type="button" aria-label="Abrir menu">☰</button>
           <a class="brand" href="index.html" aria-label="Página inicial do Gov.br" data-page="inicio">
             <img src="assets/img/logo-govbr.png" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
             <strong class="brand-text">gov.br</strong>
@@ -544,9 +544,7 @@ function tableHtml(headers, rows) {
 
 function closeSidebar() {
   const sidebar = document.getElementById('sidebar');
-  const btnMenu = document.getElementById('btnMenu');
   sidebar?.classList.remove('active');
-  btnMenu?.setAttribute('aria-expanded', 'false');
 }
 
 function showStatus(title, text) {
@@ -561,7 +559,7 @@ function handleDocumentClick(event) {
   const sidebar = document.getElementById('sidebar');
 
   if (!event.target.closest('.search-card')) suggestionsBox?.classList.remove('active');
-  if (sidebar?.classList.contains('active') && !event.target.closest('#sidebar') && !event.target.closest('#btnMenu')) {
+  if (sidebar?.classList.contains('active') && !event.target.closest('#sidebar')) {
     closeSidebar();
   }
 }
@@ -613,17 +611,6 @@ function bindEvents() {
       group?.classList.toggle('open');
       toggle.setAttribute('aria-expanded', group?.classList.contains('open') ? 'true' : 'false');
     });
-  });
-
-  const btnMenu = document.getElementById('btnMenu');
-  const sidebar = document.getElementById('sidebar');
-  btnMenu?.setAttribute('aria-expanded', 'false');
-  btnMenu?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const open = !sidebar.classList.contains('active');
-    sidebar.classList.toggle('active', open);
-    btnMenu.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
 
   const input = document.getElementById('smartSearch');

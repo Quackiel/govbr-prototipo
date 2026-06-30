@@ -134,3 +134,107 @@
   .login-benefits { display: none; }
   .site-footer { display: none; }
 }
+
+@media (max-width: 900px) {
+  body.login-page .skip-link + .login-screen,
+  .login-screen {
+    width: min(100% - 24px, 520px);
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 28px 0 42px;
+    gap: 16px;
+  }
+
+  .login-brand-panel {
+    align-items: center;
+    text-align: center;
+    padding: 28px 22px;
+  }
+
+  .login-brand {
+    justify-content: center;
+  }
+
+  .login-brand-panel h1 {
+    font-size: 1.8rem;
+  }
+
+  .login-benefits {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 720px) {
+  .brand-header {
+    position: sticky;
+  }
+
+  .brand-inner {
+    min-height: 58px;
+    justify-content: center;
+    padding: 10px 0;
+  }
+
+  .brand-left {
+    width: auto;
+    justify-content: center;
+  }
+
+  .brand img {
+    height: 32px;
+  }
+
+  .hero-search {
+    padding: 20px 0 14px;
+  }
+
+  .hero-copy h1 {
+    font-size: 1.7rem;
+    line-height: 1.18;
+  }
+
+  .hero-copy p {
+    max-width: 32ch;
+    font-size: .98rem;
+  }
+
+  .search-row {
+    min-height: 62px;
+    padding: 0 12px;
+  }
+
+  .search-row input {
+    height: 54px;
+    font-size: .98rem;
+  }
+
+  .message {
+    padding: 20px 16px;
+  }
+
+  .document-preview-card,
+  .document-import-panel,
+  .panel {
+    border-radius: 14px;
+  }
+
+  .file-import-control {
+    width: 100%;
+  }
+
+  .document-import-panel button[data-page='carteira'] {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 10px;
+  }
+
+  .bottom-nav {
+    border-radius: 14px 14px 0 0;
+    padding: 8px 8px 10px;
+  }
+
+  .bottom-nav button {
+    min-width: 58px;
+    font-size: .72rem;
+  }
+}
