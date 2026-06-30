@@ -26,6 +26,13 @@ const GOV_DATA = {
       highlight: 'CIN, CPF, CNH e CTPS aparecem no mesmo ambiente, sem redirecionar o cidadão.',
       sections: [{ type: 'documents' }, { type: 'family' }]
     },
+    documento: {
+      breadcrumb: 'Inicio / Carteira Digital / Documento',
+      title: 'Documento Digital',
+      intro: 'Visualize os dados do documento selecionado e importe uma versao atualizada para o prototipo.',
+      highlight: 'Nenhum arquivo real e enviado: a importacao acontece apenas como simulacao no navegador.',
+      sections: [{ type: 'documentDetail' }]
+    },
     servicos: {
       breadcrumb: 'Início / Serviços',
       title: 'Serviços',

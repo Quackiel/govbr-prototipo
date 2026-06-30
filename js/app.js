@@ -29,11 +29,11 @@ const MENU = [
 ];
 
 const DOCUMENTS = [
-  { short: 'CIN', title: 'Carteira de Identidade Nacional', text: 'Documento de identificação com CPF integrado.', page: 'carteira', action: 'Visualizar CIN' },
-  { short: 'CNH', title: 'Carteira Nacional de Habilitação', text: 'Validade, pontuação, veículos e renovação.', page: 'transito', action: 'Consultar CNH' },
-  { short: 'CPF', title: 'Cadastro de Pessoa Física', text: 'Situação cadastral e comprovante de inscrição.', page: 'carteira', action: 'Emitir CPF' },
-  { short: 'CTPS', title: 'Carteira de Trabalho Digital', text: 'Vínculos, contratos e dados trabalhistas.', page: 'previdencia', action: 'Abrir CTPS' },
-  { short: 'SUS', title: 'Cartão Nacional de Saúde', text: 'Vacinas, receitas e atendimentos vinculados.', page: 'saude', action: 'Ver cartão SUS' }
+  { id: 'cin', short: 'CIN', title: 'Carteira de Identidade Nacional', text: 'Documento de identificacao com CPF integrado.', action: 'Visualizar CIN', issuer: 'Ministerio da Justica', status: 'Disponivel', updated: '15/06/2026', fields: [['CPF', '***.456.***-00'], ['Nascimento', '12/04/1999'], ['Validade', 'Indeterminada']] },
+  { id: 'cnh', short: 'CNH', title: 'Carteira Nacional de Habilitacao', text: 'Validade, pontuacao, veiculos e renovacao.', action: 'Consultar CNH', issuer: 'Senatran', status: 'Ativa', updated: '08/06/2026', fields: [['Categoria', 'B'], ['Pontos', '0'], ['Validade', '22/07/2027']] },
+  { id: 'cpf', short: 'CPF', title: 'Cadastro de Pessoa Fisica', text: 'Situacao cadastral e comprovante de inscricao.', action: 'Emitir CPF', issuer: 'Receita Federal', status: 'Regular', updated: '10/06/2026', fields: [['Inscricao', '***.456.***-00'], ['Situacao', 'Regular'], ['Emitido em', '10/06/2026']] },
+  { id: 'ctps', short: 'CTPS', title: 'Carteira de Trabalho Digital', text: 'Vinculos, contratos e dados trabalhistas.', action: 'Abrir CTPS', issuer: 'Ministerio do Trabalho', status: 'Atualizada', updated: '19/06/2026', fields: [['Vinculos ativos', '1'], ['Ultimo contrato', '2024'], ['Beneficios', 'Nenhum pendente']] },
+  { id: 'sus', short: 'SUS', title: 'Cartao Nacional de Saude', text: 'Vacinas, receitas e atendimentos vinculados.', action: 'Ver cartao SUS', issuer: 'Ministerio da Saude', status: 'Ativo', updated: '21/06/2026', fields: [['CNS', '898 **** **** 0012'], ['Vacinas', 'Em dia'], ['Proxima consulta', '03/07/2026']] }
 ];
 
 function isAuthenticated() {
@@ -61,9 +61,17 @@ function currentPage() {
   return GOV_DATA.pages[requestedPage] ? requestedPage : 'inicio';
 }
 
-function navigate(page) {
+function currentDocument() {
+  const params = new URLSearchParams(window.location.search);
+  const docId = params.get('doc') || 'cin';
+  return DOCUMENTS.find(doc => doc.id === docId) || DOCUMENTS[0];
+}
+function navigate(page, options = {}) {
   const target = !isAuthenticated() && page !== 'login' ? 'login' : page;
-  const url = target === 'inicio' ? 'index.html' : `index.html?page=${target}`;
+  const query = new URLSearchParams();
+  if (target !== 'inicio') query.set('page', target);
+  if (options.doc) query.set('doc', options.doc);
+  const url = query.toString() ? `index.html?${query.toString()}` : 'index.html';
   window.history.pushState({}, '', url);
   render(target);
 }
@@ -102,7 +110,7 @@ function loginShellHtml(page) {
     <main class="login-screen" id="conteudo" tabindex="-1">
       <section class="login-brand-panel" aria-label="Apresentação Gov.br">
         <a class="brand login-brand" href="index.html" aria-label="Página inicial do Gov.br">
-          <img src="assets/img/logo-govbr.svg" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+          <img src="assets/img/logo-govbr.png" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
           <strong class="brand-text">gov.br</strong>
         </a>
         <h1>${page.title}</h1>
@@ -120,6 +128,18 @@ function loginShellHtml(page) {
   `;
 }
 
+function bottomNavHtml(activePage) {
+  const tabs = [
+    { page: 'inicio', icon: 'home', label: 'Inicio' },
+    { page: 'saude', icon: 'medical_services', label: 'Saude' },
+    { page: 'educacao', icon: 'school', label: 'Educacao' },
+    { page: 'social', icon: 'group', label: 'Social' }
+  ];
+
+  return `<nav class="bottom-nav" aria-label="Navegacao principal">
+    ${tabs.map(tab => `<button type="button" class="${tab.page === activePage ? 'active' : ''}" data-page="${tab.page}"><span class="material-symbols-outlined">${tab.icon}</span>${tab.label}</button>`).join('')}
+  </nav>`;
+}
 function shellHtml(activePage, page) {
   return `
     <div class="skip-link"><a href="#conteudo">Ir para o conteúdo principal</a></div>
@@ -140,7 +160,7 @@ function shellHtml(activePage, page) {
         <div class="brand-left">
           <button class="menu-mobile" id="btnMenu" type="button" aria-label="Abrir menu">☰</button>
           <a class="brand" href="index.html" aria-label="Página inicial do Gov.br" data-page="inicio">
-            <img src="assets/img/logo-govbr.svg" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+            <img src="assets/img/logo-govbr.png" alt="gov.br" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
             <strong class="brand-text">gov.br</strong>
             <span>Portal de serviços</span>
           </a>
@@ -203,12 +223,15 @@ function shellHtml(activePage, page) {
         </nav>
       </div>
     </footer>
+
+    ${bottomNavHtml(activePage)}
   `;
 }
 
 function sectionHtml(section) {
   const templates = {
     documentCarousel: documentCarouselSection,
+    documentDetail: documentDetailSection,
     quick: quickSection,
     recommended: recommendedSection,
     process: processSection,
@@ -236,32 +259,69 @@ function blockHeader(title, subtitle) {
 
 function documentCarouselSection() {
   return `
-    <section class="panel document-panel" aria-label="Documentos mais usados">
-      <div class="section-header carousel-header">
-        <div><span>Documentos mais usados</span><h2>Acesse sem procurar em vários órgãos</h2></div>
-        <div class="carousel-controls" aria-label="Controles do carrossel">
-          <button type="button" class="icon-button" id="carouselPrev" aria-label="Documento anterior">‹</button>
-          <button type="button" class="icon-button" id="carouselNext" aria-label="Próximo documento">›</button>
-        </div>
+    <section class="document-section" aria-label="Carteira Digital">
+      <div class="section-title-row">
+        <h2>Carteira Digital</h2>
+        <button type="button" data-page="carteira">Ver todos</button>
       </div>
       <div class="document-carousel" id="documentCarousel">
         ${DOCUMENTS.map((doc, index) => `
-          <article class="document-slide ${index === 0 ? 'active' : ''}" data-slide="${index}">
-            <span class="document-badge">${doc.short}</span>
-            <div>
-              <strong>${doc.title}</strong>
+          <article class="document-slide ${index === 0 ? 'active' : ''} document-${doc.short.toLowerCase()}" data-slide="${index}" data-page="documento" data-doc="${doc.id}" tabindex="0">
+            <div class="document-card-top">
+              <span>República Federativa do Brasil</span>
+              <strong>${doc.short}</strong>
+            </div>
+            <div class="document-card-body">
+              <h3>${doc.title}</h3>
               <p>${doc.text}</p>
             </div>
-            <button type="button" data-page="${doc.page}">${doc.action}</button>
+            <button type="button" data-page="documento" data-doc="${doc.id}">${doc.action}</button>
           </article>
         `).join('')}
       </div>
-      <div class="carousel-dots" aria-label="Indicadores do carrossel">
-        ${DOCUMENTS.map((doc, index) => `<button type="button" class="carousel-dot ${index === 0 ? 'active' : ''}" data-carousel-index="${index}" aria-label="Mostrar ${doc.short}"></button>`).join('')}
+      <div class="carousel-controls civic-carousel-controls" aria-label="Controles do carrossel">
+        <button type="button" class="icon-button" id="carouselPrev" aria-label="Documento anterior">‹</button>
+        <div class="carousel-dots" aria-label="Indicadores do carrossel">
+          ${DOCUMENTS.map((doc, index) => `<button type="button" class="carousel-dot ${index === 0 ? 'active' : ''}" data-carousel-index="${index}" aria-label="Mostrar ${doc.short}"></button>`).join('')}
+        </div>
+        <button type="button" class="icon-button" id="carouselNext" aria-label="Próximo documento">›</button>
       </div>
     </section>`;
 }
 
+function documentDetailSection() {
+  const doc = currentDocument();
+  return `
+    <section class="document-detail-layout" aria-label="Documento digital selecionado">
+      <article class="document-preview-card document-${doc.short.toLowerCase()}">
+        <div class="document-card-top">
+          <span>Republica Federativa do Brasil</span>
+          <strong>${doc.short}</strong>
+        </div>
+        <div class="document-card-body">
+          <h2>${doc.title}</h2>
+          <p>${doc.text}</p>
+        </div>
+        <div class="document-fields">
+          <div><span>Orgao emissor</span><strong>${doc.issuer}</strong></div>
+          <div><span>Status</span><strong>${doc.status}</strong></div>
+          <div><span>Atualizado em</span><strong>${doc.updated}</strong></div>
+          ${doc.fields.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('')}
+        </div>
+      </article>
+      <section class="panel document-import-panel">
+        <div class="section-header"><div><span>Carteira Digital</span><h2>Importar documento</h2></div></div>
+        <p>Atualize a visualizacao deste documento anexando um arquivo do seu computador.</p>
+        <label class="file-import-control" for="documentImport">
+          <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+          Selecionar arquivo
+          <input id="documentImport" type="file" accept=".pdf,.png,.jpg,.jpeg">
+        </label>
+        <p class="import-status" id="importStatus">Formatos aceitos: PDF, PNG ou JPG. A importacao e simulada neste prototipo.</p>
+        <button type="button" data-page="carteira">Voltar para carteira</button>
+      </section>
+    </section>`;
+}
 function quickSection() {
   return `
     <section class="panel">
@@ -535,7 +595,8 @@ function bindEvents() {
   document.querySelectorAll('[data-page]').forEach(el => {
     el.addEventListener('click', (event) => {
       event.preventDefault();
-      navigate(el.dataset.page);
+      event.stopPropagation();
+      navigate(el.dataset.page, { doc: el.dataset.doc });
       closeSidebar();
     });
   });
@@ -577,6 +638,17 @@ function bindEvents() {
   });
   btnSearch?.addEventListener('click', () => submitSearch(input));
 
+  const documentImport = document.getElementById('documentImport');
+  documentImport?.addEventListener('change', () => {
+    const file = documentImport.files?.[0];
+    const status = document.getElementById('importStatus');
+    const message = file
+      ? `Arquivo ${file.name} importado para ${currentDocument().short}.`
+      : 'Nenhum arquivo selecionado.';
+    if (status) status.textContent = message;
+    showStatus('Documento importado', message);
+  });
+
   bindCarousel();
 
   document.removeEventListener('click', handleDocumentClick);
@@ -588,25 +660,30 @@ function bindEvents() {
 }
 
 function bindCarousel() {
-  if (!document.getElementById('documentCarousel')) return;
+  const carousel = document.getElementById('documentCarousel');
+  if (!carousel) return;
   document.getElementById('carouselPrev')?.addEventListener('click', () => moveCarousel(-1));
   document.getElementById('carouselNext')?.addEventListener('click', () => moveCarousel(1));
   document.querySelectorAll('[data-carousel-index]').forEach(dot => {
-    dot.addEventListener('click', () => updateCarousel(Number(dot.dataset.carouselIndex)));
+    dot.addEventListener('click', () => updateCarousel(Number(dot.dataset.carouselIndex), true));
   });
-  updateCarousel(carouselIndex);
+  updateCarousel(carouselIndex, false);
 }
 
 function moveCarousel(direction) {
-  updateCarousel(carouselIndex + direction);
+  updateCarousel(carouselIndex + direction, true);
 }
 
-function updateCarousel(index) {
+function updateCarousel(index, shouldScroll) {
+  const carousel = document.getElementById('documentCarousel');
   const slides = Array.from(document.querySelectorAll('.document-slide'));
   if (!slides.length) return;
   carouselIndex = (index + slides.length) % slides.length;
   slides.forEach((slide, slideIndex) => slide.classList.toggle('active', slideIndex === carouselIndex));
   document.querySelectorAll('.carousel-dot').forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === carouselIndex));
+  if (shouldScroll && carousel) {
+    carousel.scrollTo({ left: slides[carouselIndex].offsetLeft, behavior: 'smooth' });
+  }
 }
 
 function normalizeText(text) {
